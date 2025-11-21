@@ -79,81 +79,104 @@ function SubmissionPage() {
       <div className="wall-gradient-1" />
       <div className="wall-gradient-2" />
 
-      {step === 'choose' && (
-        <div className="submit-card submit-card--stack">
-          <div className="submit-card__header">
-            <p className="submit-eyebrow">I want to add my message to...</p>
-          </div>
-          <div className="submit-choice-list">
-            {categories.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                className={`submit-choice${selectedCategory === option.id ? ' is-active' : ''}`}
-                style={{
-                  '--choice-color': option.color,
-                  '--choice-gradient': option.gradient
-                }}
-                onClick={() => handleCategorySelection(option.id)}
-              >
-                <span className="submit-choice__glow" />
-                <span className="submit-choice__label">{option.title}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {step === 'form' && activeCategory && (
-        <form className="submit-card submit-card--form" onSubmit={handleSubmit}>
-          <div className="form-toolbar">
-            <button type="button" className="link-btn" onClick={() => setStep('choose')}>
-              ← Back
-            </button>
-            <div
-              className="category-chip"
-              style={{
-                '--chip-color': activeCategory.color,
-                '--chip-gradient': activeCategory.gradient
-              }}
-            >
-              {activeCategory.title}
-            </div>
-          </div>
-          <textarea
-            value={message}
-            rows={4}
-            maxLength={MAX_CHAR_COUNT}
-            placeholder="Type up to 80 characters"
-            onChange={(event) => setMessage(event.target.value.slice(0, MAX_CHAR_COUNT))}
+      <div className="submit-form-wrapper">
+        <header className="submit-form-header">
+          <img 
+            src="https://storage.emojot.com/pictures/generalImages/67761761cb917201e680c031-skin13.png" 
+            alt="Emojot Logo" 
+            className="submit-form-header-logo"
           />
-          <div className="input-meta">
-            <span>
-              {message.length}/{MAX_CHAR_COUNT}
-            </span>
-            {error && <span className="error-text">{error}</span>}
-          </div>
-          <button
-            type="submit"
-            disabled={isSubmitDisabled}
-            className="primary-btn full-width"
-            style={{ background: activeCategory.color }}
-          >
-            {status === 'loading' ? 'Adding...' : 'Add to Mosaic'}
-          </button>
-        </form>
-      )}
+          <span className="submit-form-header-separator">|</span>
+          <h1 className="submit-form-title">Through Her Eyes - Live Digital Mural</h1>
+        </header>
 
-      {step === 'confirmation' && (
-        <div className="submit-card submit-card--confirmation">
-          <div className="confirmation-icon">✓</div>
-          <h2>Your message has been added.</h2>
-          <p>Look at the wall to see it appear.</p>
-          <button className="primary-btn full-width" onClick={handleRestart}>
-            Add another message
-          </button>
+        <div className="submit-form-content">
+          {step === 'choose' && (
+            <div className="submit-card submit-card--stack">
+              <div className="submit-card__header">
+                <p className="submit-eyebrow">I want to add my message to...</p>
+              </div>
+              <div className="submit-choice-list">
+                {categories.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`submit-choice${selectedCategory === option.id ? ' is-active' : ''}`}
+                    style={{
+                      '--choice-color': option.color,
+                      '--choice-gradient': option.gradient
+                    }}
+                    onClick={() => handleCategorySelection(option.id)}
+                  >
+                    <span className="submit-choice__glow" />
+                    <span className="submit-choice__label">{option.title}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {step === 'form' && activeCategory && (
+            <form className="submit-card submit-card--form" onSubmit={handleSubmit}>
+              <div className="form-toolbar">
+                <button type="button" className="link-btn" onClick={() => setStep('choose')}>
+                  ← Back
+                </button>
+                <div
+                  className="category-chip"
+                  style={{
+                    '--chip-color': activeCategory.color,
+                    '--chip-gradient': activeCategory.gradient
+                  }}
+                >
+                  {activeCategory.title}
+                </div>
+              </div>
+              <textarea
+                value={message}
+                rows={4}
+                maxLength={MAX_CHAR_COUNT}
+                placeholder="Type up to 80 characters"
+                onChange={(event) => setMessage(event.target.value.slice(0, MAX_CHAR_COUNT))}
+              />
+              <div className="input-meta">
+                <span>
+                  {message.length}/{MAX_CHAR_COUNT}
+                </span>
+                {error && <span className="error-text">{error}</span>}
+              </div>
+              <button
+                type="submit"
+                disabled={isSubmitDisabled}
+                className="primary-btn full-width"
+                style={{ background: activeCategory.color }}
+              >
+                {status === 'loading' ? 'Adding...' : 'Add to Mosaic'}
+              </button>
+            </form>
+          )}
+
+          {step === 'confirmation' && (
+            <div className="submit-card submit-card--confirmation">
+              <div className="confirmation-icon">✓</div>
+              <h2>Your message has been added.</h2>
+              <p>Look at the wall to see it appear.</p>
+              <button className="primary-btn full-width" onClick={handleRestart}>
+                Add another message
+              </button>
+            </div>
+          )}
         </div>
-      )}
+
+        <footer className="submit-form-footer">
+          <span className="submit-form-footer-text">Powered By Emojot</span>
+          <img 
+            src="https://storage.emojot.com/pictures/generalImages/67761761cb917201e680c031-skin4.png" 
+            alt="Emojot Logo" 
+            className="submit-form-footer-logo"
+          />
+        </footer>
+      </div>
     </section>
   );
 }

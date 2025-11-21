@@ -161,107 +161,120 @@ function WallPage() {
     const arranged = [...submissions];
     const tileCount = Math.max(arranged.length, 1);
 
-    // Smart grid calculation based on count
-    let columns, rows;
-    if (tileCount === 1) {
-      columns = 1;
-      rows = 1;
-    } else if (tileCount === 2) {
-      columns = 1;
-      rows = 2;
-    } else if (tileCount === 3) {
-      columns = 2;
-      rows = 2; // 1 up spanning both, 2 down
-    } else if (tileCount === 4) {
-      columns = 2;
-      rows = 2;
-    } else {
-      // For 5+, calculate optimal grid that fits all tiles
-      const aspectRatio = viewport.width / Math.max(viewport.height, 1);
-      // Start with a square-ish grid and adjust
-      const baseCols = Math.ceil(Math.sqrt(tileCount * aspectRatio));
-      columns = Math.max(2, Math.min(20, baseCols));
-      rows = Math.ceil(tileCount / columns);
+    // Dynamic grid system: base 6×4 (24 cards), then expand
+    // 1-24 cards: 6×4 grid
+    // 25-35 cards: 7×5 grid
+    // 36-48 cards: 8×6 grid
+    // 49-63 cards: 9×7 grid
+    // Pattern: baseCols=6, baseRows=4, increment both by 1 each expansion
+    
+    const baseCols = 6;
+    const baseRows = 4;
+    const baseCapacity = baseCols * baseRows; // 24
+    
+    let gridLevel = 0;
+    let currentCapacity = baseCapacity;
+    
+    // Find which grid level we need
+    while (tileCount > currentCapacity && gridLevel < 20) {
+      gridLevel++;
+      currentCapacity = (baseCols + gridLevel) * (baseRows + gridLevel);
     }
+    
+    const columns = baseCols + gridLevel;
+    const rows = baseRows + gridLevel;
+    
+    // Calculate scale: base scale is 1.0 for first grid (6×4)
+    // Each grid level reduces scale proportionally
+    // Scale = baseCols / currentCols (maintains aspect ratio)
+    const sizeScale = baseCols / columns;
 
-    // Calculate scale based on tile count - more tiles = smaller cards
-    // Scale gradually decreases from 1 card onwards
-    const sizeScale = tileCount === 1
-      ? 1.0
-      : tileCount === 2
-        ? 0.95
-        : tileCount === 3
-          ? 0.85
-          : tileCount === 4
-            ? 0.75
-            : Math.max(0.3, Math.min(0.7, Math.sqrt(4 / tileCount)));
-
-    if (
+    // Check if grid dimensions changed - if so, reshuffle all cards
+    const gridChanged = 
       gridConfigRef.current.columns !== columns ||
-      gridConfigRef.current.rows !== rows
-    ) {
+      gridConfigRef.current.rows !== rows;
+
+    // Clean up removed cards from layoutMap
+    const currentIds = new Set(arranged.map(s => s.id));
+    Object.keys(layoutMap.current).forEach(id => {
+      if (!currentIds.has(id)) {
+        delete layoutMap.current[id];
+      }
+    });
+
+    if (gridChanged) {
       gridConfigRef.current = { columns, rows };
       layoutMap.current = {};
     }
 
-    // Sequential placement for predictable layout
-    const usedCells = new Set();
-    arranged.forEach((submission, index) => {
-      let cell = null;
+    // Generate all possible grid positions
+    const allPositions = [];
+    for (let row = 1; row <= rows; row++) {
+      for (let col = 1; col <= columns; col++) {
+        allPositions.push({ col, row });
+      }
+    }
+
+    // Shuffle positions using Fisher-Yates algorithm
+    const shuffleArray = (array) => {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    };
+
+    // If grid changed or layout is empty, reshuffle all cards
+    if (gridChanged || Object.keys(layoutMap.current).length === 0) {
+      const shuffledPositions = shuffleArray(allPositions);
       
-      if (tileCount === 1) {
-        cell = { key: '1-1', column: 1, row: 1 };
-      } else if (tileCount === 2) {
-        cell = { key: `1-${index + 1}`, column: 1, row: index + 1 };
-      } else if (tileCount === 3) {
-        if (index === 0) {
-          cell = { key: '1-1', column: 1, row: 1 }; // First card spans both columns
-          // Mark both columns in row 1 as used since it spans
-          usedCells.add('1-1');
-          usedCells.add('2-1');
+      // Assign random positions to cards (allowing gaps)
+      arranged.forEach((submission, index) => {
+        const position = shuffledPositions[index % shuffledPositions.length];
+        const cellKey = `${position.col}-${position.row}`;
+        
+        layoutMap.current[submission.id] = {
+          orderValue: index,
+          offsetX: '0px',
+          offsetY: '0px',
+          column: position.col,
+          row: position.row,
+          cellKey: cellKey
+        };
+      });
+    } else {
+      // For new cards, assign random available positions
+      const usedPositions = new Set(
+        Object.values(layoutMap.current).map(layout => layout.cellKey)
+      );
+      const availablePositions = allPositions.filter(
+        pos => !usedPositions.has(`${pos.col}-${pos.row}`)
+      );
+      const shuffledAvailable = shuffleArray(availablePositions);
+      
+      arranged.forEach((submission, index) => {
+        if (!layoutMap.current[submission.id]) {
+          // New card - assign random available position
+          const position = shuffledAvailable.length > 0
+            ? shuffledAvailable.pop()
+            : allPositions[Math.floor(Math.random() * allPositions.length)];
+          const cellKey = `${position.col}-${position.row}`;
+          
+          layoutMap.current[submission.id] = {
+            orderValue: Object.keys(layoutMap.current).length,
+            offsetX: '0px',
+            offsetY: '0px',
+            column: position.col,
+            row: position.row,
+            cellKey: cellKey
+          };
         } else {
-          cell = { key: `${index}-2`, column: index, row: 2 }; // Next two in row 2
+          // Update order value for existing cards
+          layoutMap.current[submission.id].orderValue = index;
         }
-      } else if (tileCount === 4) {
-        const col = (index % 2) + 1;
-        const row = Math.floor(index / 2) + 1;
-        cell = { key: `${col}-${row}`, column: col, row };
-      } else {
-        // For 5+, use sequential grid placement
-        const col = (index % columns) + 1;
-        const row = Math.floor(index / columns) + 1;
-        cell = { key: `${col}-${row}`, column: col, row };
-      }
-
-      // Check if cell is already used, if so find next available
-      const cellKey = `${cell.column}-${cell.row}`;
-      if (usedCells.has(cellKey) && !(tileCount === 3 && index === 0)) {
-        // Find next available cell
-        for (let r = 1; r <= rows; r++) {
-          for (let c = 1; c <= columns; c++) {
-            const checkKey = `${c}-${r}`;
-            if (!usedCells.has(checkKey)) {
-              cell = { key: checkKey, column: c, row: r };
-              break;
-            }
-          }
-          if (!usedCells.has(`${cell.column}-${cell.row}`)) break;
-        }
-      }
-
-      if (!(tileCount === 3 && index === 0)) {
-        usedCells.add(`${cell.column}-${cell.row}`);
-      }
-      
-      layoutMap.current[submission.id] = {
-        orderValue: index,
-        offsetX: '0px',
-        offsetY: '0px',
-        column: cell.column,
-        row: cell.row,
-        cellKey: cell.key
-      };
-    });
+      });
+    }
 
     arranged.sort(
       (a, b) => layoutMap.current[a.id].orderValue - layoutMap.current[b.id].orderValue
@@ -324,14 +337,8 @@ function WallPage() {
           const isHighlighted = highlightedTiles[tile.id];
           const entryMeta = enteringTiles[tile.id];
           const isEntering = Boolean(entryMeta && entryMeta.ready);
-          const orderIndex = tile.layout.orderValue ?? 0;
-          const isSingleTile = tileList.length === 1;
-          const isThreeTileLayout = tileList.length === 3;
-          const gridColumnValue =
-            isSingleTile || (isThreeTileLayout && orderIndex === 0)
-              ? '1 / -1'
-              : tile.layout.column;
-          const gridRowValue = isSingleTile ? '1 / -1' : tile.layout.row;
+          const gridColumnValue = tile.layout.column;
+          const gridRowValue = tile.layout.row;
           const formattedMessage = ensure80Chars(tile.message || '');
           return (
             <article
@@ -361,6 +368,15 @@ function WallPage() {
                 opacity: entryMeta && !isEntering ? 0 : undefined
               }}
             >
+              {isEntering && (
+                <>
+                  <div className="stardust-particle" />
+                  <div className="stardust-particle" />
+                  <div className="stardust-particle" />
+                  <div className="stardust-particle" />
+                  <div className="stardust-particle" />
+                </>
+              )}
               <p className="tile-message">{formattedMessage}</p>
             </article>
           );
